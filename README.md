@@ -2,7 +2,7 @@
 
 Proyecto de la materia Aplicaciones de Sistemas Operativos (ASO). Automatiza con Ansible el despliegue de servicios Linux sobre máquinas virtuales openSUSE Leap 16.0, organizado en roles: `common`, `lamp` y `samba`.
 
-**Repositorio:** https://github.com/daniel-floresStr/Ansible-scripts  
+**Repositorio:** https://github.com/daniel-floresStr/ansible-scripts.git
 **Compartido con el docente:** gcussi@yahoo.com  
 **Integrantes:** ver `team_list.txt`
 
@@ -26,7 +26,7 @@ zypper install git
 **1.2** Clonar el proyecto y entrar a la carpeta:
 
 ```
-git clone https://github.com/daniel-floresStr/Ansible-scripts.git
+git clone https://github.com/daniel-floresStr/ansible-scripts.git
 cd ansible-scripts
 ```
 
