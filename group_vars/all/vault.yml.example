@@ -1,0 +1,19 @@
+---
+# PLANTILLA SIN SECRETOS. No escribir contraseñas reales en este archivo.
+#
+# Uso:
+#   cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+#   vim group_vars/all/vault.yml          (reemplazar los valores CAMBIAR)
+#   ansible-vault encrypt group_vars/all/vault.yml
+#
+# Las contraseñas de MariaDB no deben contener comilla simple (').
+
+# Contraseña de sudo del usuario en las máquinas destino
+# (en openSUSE, sudo puede pedir la contraseña de root)
+vault_become_password: "CAMBIAR"
+
+# Contraseña del usuario de Samba
+vault_samba_user_password: "CAMBIAR"
+
+# Contraseña de root de MariaDB
+vault_mariadb_root_password: "CAMBIAR"
