@@ -2,7 +2,7 @@
 
 Proyecto de la materia Aplicaciones de Sistemas Operativos (ASO). Automatiza con Ansible el despliegue de servicios Linux sobre máquinas virtuales openSUSE Leap 16.0, organizado en roles: `common`, `lamp` y `samba`.
 
-**Repositorio:** https://github.com/daniel-floresStr/ansible-scripts.git
+**Repositorio:** https://github.com/daniel-floresStr/ansible-scripts.git  
 **Compartido con el docente:** gcussi@yahoo.com  
 **Integrantes:** ver `team_list.txt`
 
@@ -13,6 +13,44 @@ Los valores escritos entre `< >` (`<ALIAS>`, `<IP_DESTINO>`, `<USUARIO>`, `<CONT
 - openSUSE Leap 16.0 instalado en la máquina destino.
 - Un usuario con permisos sudo en la máquina destino.
 - Conectividad de red entre la máquina master y la máquina destino, y salida a internet en ambas (para descargar paquetes).
+
+---
+ 
+## Estructura del proyecto
+ 
+```
+ansible-scripts/
+├── ansible.cfg
+├── hosts
+├── site.yml
+├── requirements.yml
+├── .gitignore
+├── README.md
+├── group_vars/
+│   └── all/
+│       ├── vars.yml
+│       ├── vault.yml                 (cifrado)
+│       └── vault.yml.example         (plantilla sin secretos)
+├── host_vars/                        (solo para equipos con usuario o clave distintos)
+│   └── <ALIAS>/
+│       ├── vars.yml
+│       └── vault.yml                 (cifrado)
+└── roles/
+    ├── common/
+    │   ├── tasks/main.yml
+    │   └── defaults/main.yml
+    ├── lamp/
+    │   ├── tasks/main.yml
+    │   ├── handlers/main.yml
+    │   ├── defaults/main.yml
+    │   └── templates/info.php.j2
+    ├── samba/
+        ├── tasks/main.yml
+        ├── handlers/main.yml
+        ├── defaults/main.yml
+        └── templates/smb.conf.j2
+  
+```
 
 ## Paso 1. Preparar la máquina master (solo la primera vez)
 
@@ -44,6 +82,26 @@ ls ~/.ssh/id_ed25519.pub
 ```
 ssh-keygen -t ed25519
 ```
+
+**1.4** Crear el archivo `.vault_pass` con la clave del vault, en una sola línea. No viene en el repositorio (está en `.gitignore`) y la clave se entrega al docente por un canal privado:
+
+```
+vim .vault_pass
+chmod 600 .vault_pass
+ansible-vault view group_vars/all/vault.yml
+```
+
+El último comando debe mostrar las tres contraseñas del proyecto (`vault_become_password`, `vault_samba_user_password` y `vault_mariadb_root_password`).
+
+Si no se tiene la clave del proyecto, se puede crear un vault propio. Primero escribir en `.vault_pass` la clave que se quiera usar, y luego:
+
+```
+cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+vim group_vars/all/vault.yml
+ansible-vault encrypt group_vars/all/vault.yml
+```
+
+En `vim`, reemplazar `CAMBIAR` por las contraseñas reales.
 
 ## Paso 2. En la máquina destino
 
@@ -220,8 +278,10 @@ head -1 group_vars/all/vault.yml
 
 ## Solución de problemas
 
-| Problema | Causa probable | Solución |
+| Síntoma | Causa probable | Solución |
 |---|---|---|
+| `vault password file ... not found` | Falta el archivo `.vault_pass` | Crearlo (paso 1.4) |
+| `Decryption failed` | La clave de `.vault_pass` no es la del vault | Usar la clave correcta, o crear un vault propio (paso 1.4) |
 | `UNREACHABLE` | Red distinta, sshd apagado o llave no copiada | Revisar `ping`, `nc -zv <IP_DESTINO> 22` y repetir `ssh-copy-id` |
 | `Permission denied (publickey)` | Ansible usa otro usuario | `ansible-inventory --host <ALIAS>` y corregir `ansible_user` |
 | `Incorrect sudo password` | Contraseña equivocada en el vault, o sudo pide la de root | `ansible-vault edit host_vars/<ALIAS>/vault.yml` |
