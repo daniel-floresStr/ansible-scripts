@@ -1,9 +1,10 @@
 ---
-- name: Despliegue LAMP + Samba en openSUSE 16.0
+- name: Despliegue LAMP + Samba + PostgreSQL en openSUSE 16.0
   hosts: servidor
-  become: yes
-  gather_facts: no
+  become: true
+  gather_facts: false
   roles:
     - common
     - lamp
+    - postgresql
     - samba

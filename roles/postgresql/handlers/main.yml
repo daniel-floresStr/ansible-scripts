@@ -1,0 +1,11 @@
+---
+- name: Reiniciar PostgreSQL
+  ansible.builtin.systemd:
+    name: postgresql
+    state: restarted
+
+# Requiere el rol lamp (Apache) ya desplegado.
+- name: Reiniciar Apache por extension PHP
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted

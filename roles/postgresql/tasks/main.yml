@@ -1,0 +1,149 @@
+---
+- name: Validar variables obligatorias
+  ansible.builtin.assert:
+    that:
+      - postgresql_admin_password is defined
+      - postgresql_app_password is defined
+      - postgresql_admin_password is not search("'")
+      - postgresql_app_password is not search("'")
+    fail_msg: >-
+      Faltan postgresql_admin_password o postgresql_app_password en group_vars,
+      o contienen comilla simple (no permitida).
+    quiet: true
+  tags: [postgresql]
+
+- name: Instalar PostgreSQL y la libreria de conexion de PHP
+  community.general.zypper:
+    name: "{{ postgresql_packages }}"
+    state: present
+  notify: Reiniciar Apache por extension PHP
+  tags: [postgresql, packages]
+
+- name: Habilitar e iniciar PostgreSQL
+  ansible.builtin.systemd:
+    name: postgresql
+    enabled: true
+    state: started
+  tags: [postgresql]
+
+- name: Comprobar que el cluster esta inicializado
+  ansible.builtin.stat:
+    path: "{{ postgresql_data_dir }}/PG_VERSION"
+  register: postgresql_cluster
+  tags: [postgresql]
+
+- name: Detener si el cluster no existe
+  ansible.builtin.fail:
+    msg: "No existe {{ postgresql_data_dir }}/PG_VERSION. Revisar: journalctl -u postgresql"
+  when: not postgresql_cluster.stat.exists
+  tags: [postgresql]
+
+- name: Escuchar en las interfaces de red configuradas
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_data_dir }}/postgresql.conf"
+    regexp: '^\s*#?\s*listen_addresses\s*='
+    line: "listen_addresses = '{{ postgresql_listen_addresses }}'"
+  notify: Reiniciar PostgreSQL
+  tags: [postgresql]
+
+- name: Autorizar conexiones con contrasena en pg_hba.conf
+  ansible.builtin.blockinfile:
+    path: "{{ postgresql_data_dir }}/pg_hba.conf"
+    marker: "# {mark} ANSIBLE - acceso por contrasena"
+    insertbefore: BOF
+    block: |
+      host    all    all    127.0.0.1/32    scram-sha-256
+      {% for red in postgresql_allowed_networks %}
+      host    {{ postgresql_app_db }}    {{ postgresql_app_user }}    {{ red }}    scram-sha-256
+      {% endfor %}
+  notify: Reiniciar PostgreSQL
+  tags: [postgresql]
+
+- name: Aplicar la configuracion antes de crear usuarios
+  ansible.builtin.meta: flush_handlers
+  tags: [postgresql]
+
+- name: Comprobar si el usuario postgres ya usa la contrasena definida
+  ansible.builtin.command:
+    argv: [psql, -X, -w, -h, 127.0.0.1, -U, postgres, -d, postgres, -At, -c, "SELECT 1"]
+  environment:
+    PGPASSWORD: "{{ postgresql_admin_password }}"
+  register: postgresql_admin_login
+  changed_when: false
+  failed_when: false
+  no_log: true
+  tags: [postgresql]
+
+- name: Establecer la contrasena del usuario postgres
+  ansible.builtin.command:
+    argv: [runuser, -u, postgres, "--", psql, -X, -v, ON_ERROR_STOP=1]
+    chdir: /tmp
+    stdin: "ALTER USER postgres WITH PASSWORD '{{ postgresql_admin_password }}';"
+  when: postgresql_admin_login.rc != 0
+  no_log: true
+  changed_when: true
+  tags: [postgresql]
+
+- name: Comprobar si existe el usuario de la aplicacion
+  ansible.builtin.command:
+    argv: [runuser, -u, postgres, "--", psql, -X, -At, -c, "SELECT 1 FROM pg_roles WHERE rolname = '{{ postgresql_app_user }}'"]
+    chdir: /tmp
+  register: postgresql_role_exists
+  changed_when: false
+  tags: [postgresql]
+
+- name: Crear el usuario de la aplicacion
+  ansible.builtin.command:
+    argv: [runuser, -u, postgres, "--", psql, -X, -v, ON_ERROR_STOP=1]
+    chdir: /tmp
+    stdin: "CREATE ROLE {{ postgresql_app_user }} LOGIN PASSWORD '{{ postgresql_app_password }}';"
+  when: postgresql_role_exists.stdout | trim != '1'
+  no_log: true
+  changed_when: true
+  tags: [postgresql]
+
+- name: Comprobar si existe la base de datos de la aplicacion
+  ansible.builtin.command:
+    argv: [runuser, -u, postgres, "--", psql, -X, -At, -c, "SELECT 1 FROM pg_database WHERE datname = '{{ postgresql_app_db }}'"]
+    chdir: /tmp
+  register: postgresql_db_exists
+  changed_when: false
+  tags: [postgresql]
+
+- name: Crear la base de datos de la aplicacion
+  ansible.builtin.command:
+    argv: [runuser, -u, postgres, "--", psql, -X, -v, ON_ERROR_STOP=1]
+    chdir: /tmp
+    stdin: "CREATE DATABASE {{ postgresql_app_db }} OWNER {{ postgresql_app_user }};"
+  when: postgresql_db_exists.stdout | trim != '1'
+  changed_when: true
+  tags: [postgresql]
+
+- name: Comprobar si el usuario de la aplicacion usa la contrasena definida
+  ansible.builtin.command:
+    argv: [psql, -X, -w, -h, 127.0.0.1, -U, "{{ postgresql_app_user }}", -d, "{{ postgresql_app_db }}", -At, -c, "SELECT 1"]
+  environment:
+    PGPASSWORD: "{{ postgresql_app_password }}"
+  register: postgresql_app_login
+  changed_when: false
+  failed_when: false
+  no_log: true
+  tags: [postgresql]
+
+- name: Actualizar la contrasena del usuario de la aplicacion
+  ansible.builtin.command:
+    argv: [runuser, -u, postgres, "--", psql, -X, -v, ON_ERROR_STOP=1]
+    chdir: /tmp
+    stdin: "ALTER ROLE {{ postgresql_app_user }} WITH PASSWORD '{{ postgresql_app_password }}';"
+  when: postgresql_app_login.rc != 0
+  no_log: true
+  changed_when: true
+  tags: [postgresql]
+
+- name: Abrir el puerto de PostgreSQL en el firewall
+  ansible.posix.firewalld:
+    port: 5432/tcp
+    permanent: true
+    immediate: true
+    state: enabled
+  tags: [postgresql]

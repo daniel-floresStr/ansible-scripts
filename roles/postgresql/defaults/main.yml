@@ -1,0 +1,19 @@
+---
+# Paquetes: servidor, cliente (psql) y extension de PHP.
+# Confirmar nombres con: zypper search -x postgresql-server postgresql php8-pgsql
+postgresql_packages:
+  - postgresql-server
+  - postgresql
+  - php8-pgsql
+
+postgresql_data_dir: /var/lib/pgsql/data
+postgresql_listen_addresses: "*"
+
+# Usuario y base de datos de la aplicacion
+postgresql_app_user: appuser
+postgresql_app_db: appdb
+
+# Redes (CIDR) autorizadas a conectarse con el usuario de la aplicacion.
+# Ajustar a la red real de cada equipo.
+postgresql_allowed_networks:
+  - 192.168.100.0/24

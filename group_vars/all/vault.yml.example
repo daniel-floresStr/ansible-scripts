@@ -17,3 +17,11 @@ vault_samba_user_password: "CAMBIAR"
 
 # Contraseña de root de MariaDB
 vault_mariadb_root_password: "CAMBIAR"
+
+# Contrasenas de PostgreSQL
+vault_postgresql_admin_password: "CAMBIAR"
+vault_postgresql_app_password: "CAMBIAR"
+
+# Contrasenas de PostgreSQL
+vault_postgresql_admin_password: "CAMBIAR"
+vault_postgresql_app_password: "CAMBIAR"

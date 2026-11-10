@@ -16,3 +16,11 @@ mariadb_root_password: "{{ vault_mariadb_root_password }}"
 # Repositorios a deshabilitar (alias de: zypper lr -d)
 common_disabled_repos:
   - openSUSE:repo-openh264
+
+# PostgreSQL
+postgresql_app_user: appuser
+postgresql_app_db: appdb
+postgresql_allowed_networks:
+  - 192.168.100.0/24
+postgresql_admin_password: "{{ vault_postgresql_admin_password }}"
+postgresql_app_password: "{{ vault_postgresql_app_password }}"
